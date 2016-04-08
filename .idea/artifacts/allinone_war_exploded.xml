@@ -7,19 +7,6 @@
           <element id="module-output" name="allinone" />
         </element>
         <element id="directory" name="lib">
-          <element id="library" level="project" name="Maven: org.apache.tomcat.embed:tomcat-embed-core:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat.embed:tomcat-embed-logging-juli:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat.embed:tomcat-embed-jasper:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat.embed:tomcat-embed-el:7.0.57" />
-          <element id="library" level="project" name="Maven: org.eclipse.jdt.core.compiler:ecj:4.4" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-jasper:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-servlet-api:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-juli:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-el-api:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-api:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-util:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-jasper-el:7.0.57" />
-          <element id="library" level="project" name="Maven: org.apache.tomcat:tomcat-jsp-api:7.0.57" />
           <element id="library" level="project" name="Maven: jstl:jstl:1.2" />
         </element>
       </element>
