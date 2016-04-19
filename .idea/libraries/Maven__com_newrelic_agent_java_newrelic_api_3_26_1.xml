@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.newrelic.agent.java:newrelic-api:3.26.1">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/newrelic/agent/java/newrelic-api/3.26.1/newrelic-api-3.26.1.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/newrelic/agent/java/newrelic-api/3.26.1/newrelic-api-3.26.1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/newrelic/agent/java/newrelic-api/3.26.1/newrelic-api-3.26.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

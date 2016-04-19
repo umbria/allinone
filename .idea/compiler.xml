@@ -22,11 +22,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
-        <module name="allinone" />
+        <module name="common" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="allinone" target="1.8" />
+      <module name="common" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

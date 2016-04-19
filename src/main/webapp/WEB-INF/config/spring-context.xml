@@ -1,0 +1,327 @@
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:task="http://www.springframework.org/schema/task"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jee="http://www.springframework.org/schema/jee"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/rabbit
+           http://www.springframework.org/schema/rabbit/spring-rabbit.xsd
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context
+           http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/task
+           http://www.springframework.org/schema/task/spring-task.xsd
+		   http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+		   http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee.xsd">
+
+    <context:annotation-config/>
+    <context:component-scan base-package="com.allinone"/>
+    <context:property-placeholder location="classpath:property/common/system.properties" order="1"
+                                  ignore-unresolvable="true"/>
+    <context:property-placeholder location="classpath:property/${server.type}/system.properties" order="2"
+                                  ignore-unresolvable="false"/>
+<!-- =========================== FOR Processor ============================== -->
+    <!--  Merged Processor and Collector into one box -->
+    <!-- ==================================================== -->
+    <!-- AOP Transaction Setting -->
+    <!-- ==================================================== -->
+    <tx:advice id="txAdvice">
+        <tx:attributes>
+            <tx:method name="create*" propagation="REQUIRED" rollback-for="Throwable"/>
+            <tx:method name="insert*" propagation="REQUIRED" rollback-for="Throwable"/>
+            <tx:method name="update*" propagation="REQUIRED" rollback-for="Throwable"/>
+            <tx:method name="save*" propagation="REQUIRED" rollback-for="Throwable"/>
+            <tx:method name="delete*" propagation="REQUIRED" rollback-for="Throwable"/>
+            <tx:method name="*" read-only="true" propagation="SUPPORTS"/>
+        </tx:attributes>
+    </tx:advice>
+
+
+
+
+
+    <!-- Beginning of Rabbit MQ Configuration -->
+
+
+    <bean id="messageConverter" class="org.springframework.amqp.support.converter.SerializerMessageConverter"/>
+
+    <rabbit:connection-factory id="connectionFactory"
+                               host="${amq.hostname}"
+                               port="${amq.port}"
+                               username="${amq.username}"
+                               password="${amq.password}" cache-mode="CONNECTION" connection-cache-size="20"
+                               channel-cache-size="2" requested-heartbeat="10"
+                               virtual-host="aggregator"/>
+
+    <rabbit:queue id="aggregatorFTPQueue" name="${amq.ftpQueue}"/>
+    <rabbit:queue id="aggregatorLiveQueue" name="${amq.liveQueue}"/>
+    <rabbit:queue id="aggregatorContentQeueue" name="${amq.contentQueue}"/>
+
+    <rabbit:template id="rabbitTemplate"
+                     connection-factory="connectionFactory"
+                     message-converter="messageConverter"/>
+
+
+
+    <!-- Default Push Notification Settings Configuration -->
+
+    <rabbit:connection-factory id="rabbitApiToAggregatorVHostConnectionFactory"
+                               host="${amq.hostname}"
+                               port="${amq.port}"
+                               username="${amq.username}"
+                               password="${amq.password}"
+                               cache-mode="CONNECTION" connection-cache-size="20"
+                               channel-cache-size="2" requested-heartbeat="10"
+                               virtual-host="apiToAggregator"/>
+
+    <rabbit:queue id="defaultPushNotificationSettingQueue" name="defaultPushNotificationSettingQueue"/>
+
+    <bean id="simpleMessageConverter" class="org.springframework.amqp.support.converter.SimpleMessageConverter"/>
+
+
+
+    <!-- RT Pusher Rabbit MQ Configuration -->
+    <bean id="jackson2JavaTypeMapper" class="org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper"/>
+    <bean id="jsonMessageConverter" class="org.springframework.amqp.support.converter.Jackson2JsonMessageConverter">
+        <property name="javaTypeMapper" ref="jackson2JavaTypeMapper"/>
+    </bean>
+
+    <rabbit:template id="rtPusherRabbitTemplate"
+                     connection-factory="connectionFactory"
+                     exchange="rtpusherExchange"
+                     message-converter="jsonMessageConverter"/>
+
+
+
+
+    <!-- End of Rabbit MQ Configuration -->
+
+
+    <task:executor id="aggregatorMessageTaskExecutor"
+                   pool-size="5-50"
+                   queue-capacity="1"
+                   keep-alive="30"
+                   rejection-policy="CALLER_RUNS"/>
+
+    <task:executor id="liveAggregatorMessageTaskExecutor"
+                   pool-size="5-50"
+                   queue-capacity="1"
+                   keep-alive="30"
+                   rejection-policy="CALLER_RUNS"/>
+
+    <task:executor id="myTaskExecutor"
+                   pool-size="1-10"
+                   queue-capacity="5"
+                   keep-alive="30"
+                   rejection-policy="CALLER_RUNS"/>
+
+    <!-- No Queue Capacity specified for content aggregator message task executor so the queue is unbounded -->
+    <task:executor id="contentAggregatorMessageTaskExecutor"
+                   pool-size="5"
+                   keep-alive="30"/>
+
+    <!-- No Queue Capacity specified for F1 Task executor so the queue is unbounded -->
+    <task:executor id="fOneTaskExecutor"
+                   pool-size="1"
+                   keep-alive="30"/>
+
+
+    <task:annotation-driven executor="myTaskExecutor"/>
+
+    <!-- DataSource -->
+    <!--<jee:jndi-lookup id="dataSource" jndi-name="java:/sseDS"/>-->
+    <!-- DataSource for Tomcat -->
+    <jee:jndi-lookup id="dataSource" jndi-name="java:/sseDS"/>
+
+    <!-- MyBatis -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean" lazy-init="false">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="mapperLocations">
+            <list>
+                <value>classpath:com/allinone/**/sql/*.xsql</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate" lazy-init="false">
+        <constructor-arg ref="sqlSessionFactory"/>
+    </bean>
+
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate" lazy-init="false">
+        <constructor-arg ref="sqlSessionFactory"/>
+    </bean>
+
+    <!-- Transaction manager for a single JDBC DataSource (alternative to JTA) -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+    <!-- Redis Configuration -->
+
+    <bean id="redisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate"
+          p:connectionFactory-ref="jedisConnectionFactory" p:keySerializer-ref="stringRedisSerializer"
+          p:valueSerializer-ref="stringRedisSerializer" p:defaultSerializer-ref="stringRedisSerializer"
+          p:enableDefaultSerializer="true"/>
+
+    <bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+          p:poolConfig-ref="jedisPoolConfig"
+          p:hostName="${nosql.svr.host}"
+          p:usePool="true"
+          p:port="${nosql.svr.port}"
+          destroy-method="destroy"/>
+
+    <bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxIdle" value="100"/>
+        <property name="minIdle" value="5"/>
+
+        <property name="testOnBorrow" value="true"/>
+        <property name="timeBetweenEvictionRunsMillis" value="600000"/>
+        <property name="minEvictableIdleTimeMillis" value="1800000"/>
+        <property name="testWhileIdle" value="true"/>
+        <property name="numTestsPerEvictionRun" value="100"/>
+    </bean>
+
+
+    <bean id="jdkSerializationRedisSerializer"
+          class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer"/>
+
+    <!-- redis template definition for Team Service -->
+    <bean id="javaSerializerRedisTemplate" class="org.springframework.data.redis.core.RedisTemplate"
+          p:connectionFactory-ref="jedisConnectionFactory"
+          p:keySerializer-ref="stringRedisSerializer"
+          p:defaultSerializer-ref="jdkSerializationRedisSerializer"
+          p:enableDefaultSerializer="true"/>
+
+
+
+
+
+
+
+    <bean id="stringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+
+
+
+    <!-- Scheduled Task Configuration -->
+    <bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+        <property name="triggers">
+            <list>
+                <ref bean="badaTrigger"/>
+            </list>
+        </property>
+    </bean>
+
+
+
+
+
+
+    <!-- Job for to check the video jobs from Omni -->
+    <bean id="badaServiceJob" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+        <property name="targetObject" ref="contentBadaServiceImpl"/>
+        <property name="targetMethod" value="feedMapping"/>
+    </bean>
+
+
+
+
+    <!-- Tranfer news push notification sending trigger -->
+    <bean id="badaTrigger" class="org.springframework.scheduling.quartz.SimpleTriggerFactoryBean">
+        <property name="jobDetail" ref="badaServiceJob"/>
+        <property name="startDelay" value="60000"/> <!-- Start Delay of one Minute -->
+        <property name="repeatInterval" value="1200000"/> <!-- Repeat Delay of 20 Minutes -->
+    </bean>
+
+
+
+    <!-- ==================================================== -->
+    <!-- Start of IPPusher Redis MQ Setting -->
+    <!-- ==================================================== -->
+
+    <!-- Server One Settings -->
+
+    <bean id="ipPusherServerOneRedisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate"
+          p:connectionFactory-ref="ipPusherServerOneJedisConnectionFactory"
+          p:keySerializer-ref="ipPusherServerOneStringRedisSerializer"
+          p:valueSerializer-ref="ipPusherServerOneStringRedisSerializer"
+          p:defaultSerializer-ref="ipPusherServerOneStringRedisSerializer"
+          p:enableDefaultSerializer="true"/>
+
+    <bean id="ipPusherServerOneStringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+
+    <bean id="ipPusherServerOneJedisConnectionFactory"
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+          p:poolConfig-ref="ipPusherServerOneJedisPoolConfig"
+          p:hostName="${ippush.redis.host.one}"
+          p:usePool="true"
+          p:port="${ippush.redis.port.one}"
+          destroy-method="destroy"/>
+
+    <bean id="ipPusherServerOneJedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxTotal" value="200"/>
+        <property name="maxIdle" value="100"/>
+        <property name="minIdle" value="10"/>
+        <property name="maxWaitMillis" value="10000"/>
+        <property name="testOnBorrow" value="true"/>
+        <property name="timeBetweenEvictionRunsMillis" value="600000"/>
+        <property name="minEvictableIdleTimeMillis" value="600000"/>
+        <property name="testWhileIdle" value="true"/>
+        <property name="numTestsPerEvictionRun" value="100"/>
+    </bean>
+
+    <!-- Server Two Settings -->
+
+    <bean id="ipPusherServerTwoRedisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate"
+          p:connectionFactory-ref="ipPusherServerTwoJedisConnectionFactory"
+          p:keySerializer-ref="ipPusherServerTwoStringRedisSerializer"
+          p:valueSerializer-ref="ipPusherServerTwoStringRedisSerializer"
+          p:defaultSerializer-ref="ipPusherServerTwoStringRedisSerializer"
+          p:enableDefaultSerializer="true"/>
+
+    <bean id="ipPusherServerTwoStringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+
+    <bean id="ipPusherServerTwoJedisConnectionFactory"
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+          p:poolConfig-ref="ipPusherServerTwoJedisPoolConfig"
+          p:hostName="${ippush.redis.host.two}"
+          p:usePool="true"
+          p:port="${ippush.redis.port.two}"
+          destroy-method="destroy"/>
+
+    <bean id="ipPusherServerTwoJedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+        <property name="maxTotal" value="200"/>
+        <property name="maxIdle" value="100"/>
+        <property name="minIdle" value="10"/>
+        <property name="maxWaitMillis" value="10000"/>
+        <property name="testOnBorrow" value="true"/>
+        <property name="timeBetweenEvictionRunsMillis" value="600000"/>
+        <property name="minEvictableIdleTimeMillis" value="600000"/>
+        <property name="testWhileIdle" value="true"/>
+        <property name="numTestsPerEvictionRun" value="100"/>
+    </bean>
+
+
+
+
+    <!-- ==================================================== -->
+    <!-- End of IPPusher Redis MQ Setting -->
+    <!-- ==================================================== -->
+
+    <bean id="xmlCommonService" class="com.samsung.sse.common.xml.service.impl.XMLCommonServiceImpl"/>
+
+
+    <!-- ====================== FOR Collector ============================ -->
+    <!-- bada   Feed -->
+    <bean id="contentBadaService" class="com.allinone.collector.bada.impl.ContentBadaServiceImpl"/>
+</beans>
